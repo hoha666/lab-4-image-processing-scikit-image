@@ -53,43 +53,40 @@ Important vocabulary:
 9. `from skimage.feature import match_template`
    - Imports scikit-image's ready-made normalized-correlation template matcher.
 
-10. `from scipy.signal import correlate2d`
-    - Imports efficient two-dimensional correlation, which is used as a building block in our own template matcher.
-
-11. `from skimage.util import img_as_float`
+10. `from skimage.util import img_as_float`
     - Imports a safe image-type converter. It changes the grayscale coins array from `uint8` values in [0, 255] to floating-point values in [0, 1].
 
-12. `plt.rcParams["figure.figsize"] = (10, 5)`
+11. `plt.rcParams["figure.figsize"] = (10, 5)`
     - Changes Matplotlib's default figure size to 10 inches wide and 5 inches high.
 
-13. `plt.rcParams["image.cmap"] = "gray"`
+12. `plt.rcParams["image.cmap"] = "gray"`
     - Makes grayscale the default color map when a two-dimensional image is displayed.
 
-14. `cwd = Path.cwd()`
+13. `cwd = Path.cwd()`
     - Gets the folder from which the notebook is currently running. `cwd` means current working directory.
 
-15. `PROJECT_ROOT = cwd.parent if cwd.name == "notebooks" else cwd`
+14. `PROJECT_ROOT = cwd.parent if cwd.name == "notebooks" else cwd`
     - This is a conditional expression. If the notebook runs inside the `notebooks` folder, the project root is its parent; otherwise, the current folder is treated as the root.
 
-16. `IMAGE_DIR = PROJECT_ROOT / "images"`
+15. `IMAGE_DIR = PROJECT_ROOT / "images"`
     - Uses Path's `/` operator to join the project root with the `images` folder name.
 
-17. `coins_path = IMAGE_DIR / "coins.jpg"`
+16. `coins_path = IMAGE_DIR / "coins.jpg"`
     - Constructs the full path to `coins.jpg`.
 
-18. `astronaut_path = IMAGE_DIR / "astronaut.jpg"`
+17. `astronaut_path = IMAGE_DIR / "astronaut.jpg"`
     - Constructs the full path to `astronaut.jpg`.
 
-19. `if not coins_path.exists() or not astronaut_path.exists():`
+18. `if not coins_path.exists() or not astronaut_path.exists():`
     - Checks that both supplied files are present. `or` makes the condition true when either file is missing.
 
-20. `raise FileNotFoundError(...)`
+19. `raise FileNotFoundError(...)`
     - Stops execution with a useful message instead of silently substituting different images.
 
-21. `print(f"scikit-image version: {skimage.__version__}")`
+20. `print(f"scikit-image version: {skimage.__version__}")`
     - Prints the library version. The leading `f` creates an f-string, so the expression inside braces is evaluated.
 
-22. `print(f"Images: {IMAGE_DIR.resolve()}")`
+21. `print(f"Images: {IMAGE_DIR.resolve()}")`
     - Prints the absolute image-directory path. `resolve()` converts the path to its complete form.
 
 ---
@@ -387,7 +384,7 @@ Remember the coordinate distinction:
 
 ### What to tell the TA
 
-> In the final task, I implement normalized cross-correlation, or NCC, without calling `match_template`. At each possible template location, NCC removes the mean brightness from the template and image patch, computes their correlation, and divides by their energies. Normalization makes the comparison less sensitive to uniform brightness and contrast changes. I use `correlate2d` to perform the sliding sums efficiently. My implementation finds `(x=75, y=170)` with score 1, exactly matching scikit-image.
+> In the final task, I implement normalized cross-correlation, or NCC, without calling `match_template`. Two ordinary `for` loops move the template across every position where it fits. At each position, I subtract the mean from the template and image patch, multiply corresponding pixels, and normalize the result. My implementation finds `(x=75, y=170)` with score 1, exactly matching scikit-image. The code is intentionally simple and readable rather than optimized for speed.
 
 The NCC idea is:
 
@@ -397,123 +394,114 @@ The NCC idea is:
 - A score close to `0` means little linear similarity.
 - A score close to `-1` means opposite intensity patterns.
 
-### Function: validation and preparation
+### Function: setup
 
 1. `def normalized_cross_correlation(image, template):`
    - Defines a reusable function with two input parameters.
 
-2. `"""Return valid normalized cross-correlation ..."""`
-   - A docstring describing the function. `valid` means only positions where the whole template fits inside the image are returned.
+2. `"""Find template similarity at every valid position using simple NCC."""`
+   - A docstring that briefly describes the function.
 
-3. `image = np.asarray(image, dtype=np.float64)`
-   - Converts the input into a NumPy array of 64-bit floating-point values. Floating point is needed for means, subtraction, division, and square roots.
+3. `image = image.astype(float)`
+   - Makes a floating-point copy of the image so calculations can contain decimal values.
 
-4. `template = np.asarray(template, dtype=np.float64)`
-   - Performs the same safe conversion for the template.
+4. `template = template.astype(float)`
+   - Makes a floating-point copy of the template.
 
-5. `if image.ndim != 2 or template.ndim != 2:`
-   - Checks that both inputs are two-dimensional grayscale arrays. `ndim` is the number of dimensions and `or` means either invalid condition is enough.
+5. `image_height, image_width = image.shape`
+   - Stores the image's number of rows and columns in clearly named variables.
 
-6. `raise ValueError("image and template must both be 2-D")`
-   - Stops the function with a clear error message if the inputs are invalid.
+6. `template_height, template_width = template.shape`
+   - Stores the template's number of rows and columns.
 
-7. `zip(template.shape, image.shape)`
-   - Pairs template height with image height and template width with image width.
+7. `result_height = image_height - template_height + 1`
+   - Calculates how many vertical positions allow the complete template to fit.
 
-8. `any(t > i for t, i in ...)`
-   - Tests whether any template dimension is larger than its matching image dimension.
+8. `result_width = image_width - template_width + 1`
+   - Calculates the number of valid horizontal positions.
 
-9. `raise ValueError("template must not be larger than image")`
-   - Prevents an impossible search.
+9. `result = np.zeros((result_height, result_width))`
+   - Creates an output array filled with zeros. One similarity score will be stored at each location.
 
-### Function: template statistics
+### Function: prepare the template
 
-10. `h, w = template.shape`
-    - Stores template height and width.
+10. `template_zero_mean = template - np.mean(template)`
+    - Calculates the average template brightness and subtracts it from every template pixel.
 
-11. `n = h * w`
-    - Calculates the total number of template pixels.
+11. `template_length = np.sqrt(np.sum(template_zero_mean ** 2))`
+    - Squares the centered template values, adds them, and takes the square root. This is the template's normalization length.
 
-12. `centered_template = template - template.mean()`
-    - Subtracts the template's average intensity from every template pixel, producing a zero-mean template.
+### Function: examine every image position
 
-13. `template_energy = np.sum(centered_template ** 2)`
-    - Squares every centered value and adds them. This measures the template's intensity variation or energy.
+12. `for y in range(result_height):`
+    - Moves through every valid vertical position. `y` represents the row.
 
-### Function: sliding image statistics and NCC
+13. `for x in range(result_width):`
+    - Inside each row, moves through every valid horizontal position. `x` represents the column.
 
-14. `numerator = correlate2d(image, centered_template, mode="valid")`
-    - Slides the centered template across the image and calculates the sum of products at every fully valid position. Because the template has zero mean, this is the NCC numerator.
+14. `patch = image[y:y + template_height, x:x + template_width]`
+    - Crops an image patch at the current position with exactly the same size as the template.
 
-15. `kernel = np.ones((h, w), dtype=np.float64)`
-    - Creates an all-ones array with the template's dimensions. It is used to calculate sums for every image patch.
+15. `patch_zero_mean = patch - np.mean(patch)`
+    - Subtracts the patch's average brightness from each patch pixel.
 
-16. `patch_sum = correlate2d(image, kernel, mode="valid")`
-    - Calculates the pixel sum of every image patch that has the same size as the template.
+16. `numerator = np.sum(patch_zero_mean * template_zero_mean)`
+    - Multiplies corresponding centered pixels and adds the products. A large positive value means similar patterns.
 
-17. `patch_sum_sq = correlate2d(image ** 2, kernel, mode="valid")`
-    - Squares the image values first, then calculates the sum of squares for every patch.
+17. `patch_length = np.sqrt(np.sum(patch_zero_mean ** 2))`
+    - Calculates the normalization length of the current patch.
 
-18. `patch_sum_sq - (patch_sum ** 2) / n`
-    - Uses the identity `sum(x^2) - sum(x)^2 / n` to calculate each patch's zero-mean energy without explicitly constructing every patch.
+18. `denominator = patch_length * template_length`
+    - Multiplies the two lengths to form the NCC denominator.
 
-19. `np.maximum(..., 0)`
-    - Clips tiny negative values caused by floating-point rounding to zero. True energy cannot be negative.
+19. `if denominator != 0:`
+    - Checks that division is safe. A completely constant patch has zero length.
 
-20. `denominator = np.sqrt(patch_energy * template_energy)`
-    - Computes the normalization factor from the image-patch energy and template energy.
+20. `result[y, x] = numerator / denominator`
+    - Calculates the normalized similarity and stores it at the current location.
 
-21. `np.divide(numerator, denominator, ...)`
-    - Divides the numerator by the denominator to obtain NCC scores.
-
-22. `out=np.zeros_like(numerator)`
-    - Creates a zero-filled output array with the same shape as the numerator.
-
-23. `where=denominator > 1e-12`
-    - Divides only where the denominator is safely nonzero. This avoids division-by-zero warnings in constant patches.
-
-24. `return ...`
+21. `return result`
     - Sends the completed response map back to the caller.
 
 ### Calling and visualizing our function
 
-25. `own_result = normalized_cross_correlation(template_image, coin)`
+22. `own_result = normalized_cross_correlation(template_image, coin)`
     - Runs our matcher using the same full image and template used in Task 5.
 
-26. `own_y, own_x = np.unravel_index(np.argmax(own_result), own_result.shape)`
+23. `own_y, own_x = np.unravel_index(np.argmax(own_result), own_result.shape)`
     - Finds the largest score and directly stores its row as `own_y` and column as `own_x`.
 
-27. `fig, axes = plt.subplots(1, 3, figsize=(12, 4))`
+24. `fig, axes = plt.subplots(1, 3, figsize=(12, 4))`
     - Creates panels for the template, matched image, and NCC response map.
 
-28. `axes[0].imshow(coin)` and its title
+25. `axes[0].imshow(coin)` and its title
     - Display the search template.
 
-29. `axes[1].imshow(template_image)`
+26. `axes[1].imshow(template_image)`
     - Displays the full image.
 
-30. `axes[1].add_patch(plt.Rectangle(...))`
+27. `axes[1].add_patch(plt.Rectangle(...))`
     - Marks our best match with a red rectangle.
 
-31. `axes[2].imshow(own_result)`
+28. `axes[2].imshow(own_result)`
     - Displays our NCC response map.
 
-32. `axes[2].plot(own_x, own_y, "o", ...)`
+29. `axes[2].plot(own_x, own_y, "o", ...)`
     - Marks the maximum response with a red circle.
 
-33. `for ax in axes: ax.axis("off")`
+30. `for ax in axes: ax.axis("off")`
     - Removes plot axes from all three panels.
 
-34. `plt.tight_layout()` and `plt.show()`
+31. `plt.tight_layout()` and `plt.show()`
     - Arrange and render the figure.
 
-35. The first `print(...)`
+32. The first `print(...)`
     - Reports our best coordinates and score.
 
-36. The second `print(...)`
+33. The second `print(...)`
     - Reports scikit-image's coordinates for comparison.
 
-37. `print(f"Same best location: {(own_x, own_y) == (x, y)}")`
+34. `print(f"Same best location: {(own_x, own_y) == (x, y)}")`
     - Compares the two coordinate tuples. It prints `True`, demonstrating that both implementations agree.
 
 ---
@@ -560,7 +548,7 @@ Raw correlation is affected by overall brightness and contrast. Subtracting mean
 
 ### Did we really implement our own matcher?
 
-Yes. Task 5 uses scikit-image's `match_template`. Task 6 implements the NCC formula, input validation, patch statistics, safe normalization, maximum search, and visualization. SciPy's `correlate2d` is used only as an efficient primitive for repeated sliding sums and products.
+Yes. Task 5 uses scikit-image's `match_template`. Task 6 uses basic nested loops to move the template, crop each patch, calculate NCC, find the maximum, and visualize the result. It does not call the library matcher.
 
 ---
 
