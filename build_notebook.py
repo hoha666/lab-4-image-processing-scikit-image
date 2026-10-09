@@ -25,9 +25,8 @@ nb["cells"] = [
     md("""
 # Lab 4: Getting Started with Image Processing Using scikit-image
 
-This notebook implements Tasks 0-6 from the lab specification. It is self-contained: if
-`images/coins.jpg` and `images/astronaut.jpg` do not exist, the setup cell creates them from
-the standard images distributed with scikit-image.
+This notebook implements Tasks 0-6 from the lab specification using the two image files
+supplied with the lab: `images/coins.jpg` and `images/astronaut.jpg`.
 """),
     md("""
 ## Task 0 - Software setup
@@ -41,9 +40,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import skimage
 from skimage import data, io
-from skimage.color import rgb2gray, gray2rgb
+from skimage.color import rgb2gray
 from skimage.transform import rescale, resize
 from skimage.feature import match_template
+from skimage.util import img_as_float
 from scipy.signal import correlate2d
 
 plt.rcParams["figure.figsize"] = (10, 5)
@@ -53,14 +53,10 @@ plt.rcParams["image.cmap"] = "gray"
 cwd = Path.cwd()
 PROJECT_ROOT = cwd.parent if cwd.name == "notebooks" else cwd
 IMAGE_DIR = PROJECT_ROOT / "images"
-IMAGE_DIR.mkdir(exist_ok=True)
-
 coins_path = IMAGE_DIR / "coins.jpg"
 astronaut_path = IMAGE_DIR / "astronaut.jpg"
-if not coins_path.exists():
-    io.imsave(coins_path, gray2rgb(data.coins()))
-if not astronaut_path.exists():
-    io.imsave(astronaut_path, data.astronaut())
+if not coins_path.exists() or not astronaut_path.exists():
+    raise FileNotFoundError("Place the supplied coins.jpg and astronaut.jpg files in images/")
 
 print(f"scikit-image version: {skimage.__version__}")
 print(f"Images: {IMAGE_DIR.resolve()}")
@@ -68,8 +64,9 @@ print(f"Images: {IMAGE_DIR.resolve()}")
     md("""
 ## Task 1 - Load and visualize images
 
-For each image we report shape, dtype, and the intensity at pixel `[1, 100, 1]`, then
-display the image. Both JPEG files are RGB images, so the third index selects the green channel.
+For each image we report shape, dtype, and a sample pixel intensity, then display it. The supplied
+`coins.jpg` is already 2-D grayscale, so its sample is `[1, 100]`. The supplied `astronaut.jpg`
+is RGB, so `[1, 100, 1]` selects its green channel.
 """),
     code("""
 coins = io.imread(coins_path)
@@ -77,8 +74,10 @@ astronaut = io.imread(astronaut_path)
 
 fig, axes = plt.subplots(1, 2, figsize=(11, 5))
 for ax, image, name in zip(axes, [coins, astronaut], ["coins.jpg", "astronaut.jpg"]):
-    print(f"{name}: shape={image.shape}, dtype={image.dtype}, pixel[1,100,1]={image[1,100,1]}")
-    ax.imshow(image)
+    sample = image[1, 100] if image.ndim == 2 else image[1, 100, 1]
+    sample_index = "[1,100]" if image.ndim == 2 else "[1,100,1]"
+    print(f"{name}: shape={image.shape}, dtype={image.dtype}, pixel{sample_index}={sample}")
+    ax.imshow(image, cmap="gray" if image.ndim == 2 else None)
     ax.set_title(name)
     ax.axis("off")
 plt.tight_layout()
@@ -87,12 +86,12 @@ plt.show()
     md("""
 ## Task 2 - Color-space conversion
 
-`rgb2gray` removes the three-channel RGB dimension by computing one luminance value per
-pixel. Consequently `(height, width, 3)` becomes `(height, width)`. The input JPEG arrays
-use `uint8` values from 0 to 255, while `rgb2gray` returns floating-point values in [0, 1].
+The supplied coins image is already grayscale, so it only needs conversion from `uint8` values
+in [0, 255] to floating-point values in [0, 1]. `rgb2gray` converts the astronaut from
+`(height, width, 3)` RGB to `(height, width)` grayscale while also returning floating point.
 """),
     code("""
-coins_gray = rgb2gray(coins)
+coins_gray = img_as_float(coins)
 astronaut_gray = rgb2gray(astronaut)
 
 for name, original, grayscale in [

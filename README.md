@@ -5,7 +5,7 @@ This repository implements all tasks in the Lab 4 assignment in a Jupyter notebo
 ## Contents
 
 - `notebooks/lab4_image_processing.ipynb` - completed, executable lab report
-- `images/coins.jpg` and `images/astronaut.jpg` - created automatically from scikit-image sample data
+- `images/coins.jpg` and `images/astronaut.jpg` - the original images supplied with the lab
 - `build_notebook.py` - reproducibly generates the notebook source
 
 ## Run
@@ -15,7 +15,7 @@ python -m pip install -r requirements.txt
 jupyter notebook notebooks/lab4_image_processing.ipynb
 ```
 
-Run all cells from top to bottom. The first code cell creates the image files if they are missing.
+Run all cells from top to bottom. Keep both supplied image files in the `images/` directory.
 
 ## Tasks covered
 

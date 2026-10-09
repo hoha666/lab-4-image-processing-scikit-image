@@ -22,7 +22,7 @@ Important vocabulary:
 
 ### What to tell the TA
 
-> First, I import the libraries needed for arrays, plotting, image processing, paths, and two-dimensional correlation. I make the notebook independent of the current working directory, create an `images` directory if necessary, and provide the standard coins and astronaut images as JPEG files. This makes the project reproducible on another computer.
+> First, I import the libraries needed for arrays, plotting, image processing, paths, and two-dimensional correlation. I make the notebook independent of the current working directory and point it to the two JPEG files supplied with the lab. I also check that both required files exist so a missing input produces a clear error.
 
 ### Line-by-line explanation
 
@@ -44,8 +44,8 @@ Important vocabulary:
 6. `from skimage import data, io`
    - Imports `data`, which contains sample images, and `io`, which reads and writes image files.
 
-7. `from skimage.color import rgb2gray, gray2rgb`
-   - Imports functions for converting RGB to grayscale and grayscale back to three-channel RGB.
+7. `from skimage.color import rgb2gray`
+   - Imports the function used to convert the RGB astronaut image to grayscale.
 
 8. `from skimage.transform import rescale, resize`
    - Imports the two size-changing functions used in Task 3.
@@ -56,23 +56,23 @@ Important vocabulary:
 10. `from scipy.signal import correlate2d`
     - Imports efficient two-dimensional correlation, which is used as a building block in our own template matcher.
 
-11. `plt.rcParams["figure.figsize"] = (10, 5)`
+11. `from skimage.util import img_as_float`
+    - Imports a safe image-type converter. It changes the grayscale coins array from `uint8` values in [0, 255] to floating-point values in [0, 1].
+
+12. `plt.rcParams["figure.figsize"] = (10, 5)`
     - Changes Matplotlib's default figure size to 10 inches wide and 5 inches high.
 
-12. `plt.rcParams["image.cmap"] = "gray"`
+13. `plt.rcParams["image.cmap"] = "gray"`
     - Makes grayscale the default color map when a two-dimensional image is displayed.
 
-13. `cwd = Path.cwd()`
+14. `cwd = Path.cwd()`
     - Gets the folder from which the notebook is currently running. `cwd` means current working directory.
 
-14. `PROJECT_ROOT = cwd.parent if cwd.name == "notebooks" else cwd`
+15. `PROJECT_ROOT = cwd.parent if cwd.name == "notebooks" else cwd`
     - This is a conditional expression. If the notebook runs inside the `notebooks` folder, the project root is its parent; otherwise, the current folder is treated as the root.
 
-15. `IMAGE_DIR = PROJECT_ROOT / "images"`
+16. `IMAGE_DIR = PROJECT_ROOT / "images"`
     - Uses Path's `/` operator to join the project root with the `images` folder name.
-
-16. `IMAGE_DIR.mkdir(exist_ok=True)`
-    - Creates the image directory. `exist_ok=True` prevents an error if it already exists.
 
 17. `coins_path = IMAGE_DIR / "coins.jpg"`
     - Constructs the full path to `coins.jpg`.
@@ -80,22 +80,16 @@ Important vocabulary:
 18. `astronaut_path = IMAGE_DIR / "astronaut.jpg"`
     - Constructs the full path to `astronaut.jpg`.
 
-19. `if not coins_path.exists():`
-    - Checks whether the coins file is missing. The indented line executes only if the condition is true.
+19. `if not coins_path.exists() or not astronaut_path.exists():`
+    - Checks that both supplied files are present. `or` makes the condition true when either file is missing.
 
-20. `io.imsave(coins_path, gray2rgb(data.coins()))`
-    - Loads scikit-image's grayscale coins sample, converts it to three RGB channels, and saves it as a JPEG. The RGB conversion makes pixel access such as `[1, 100, 1]` valid.
+20. `raise FileNotFoundError(...)`
+    - Stops execution with a useful message instead of silently substituting different images.
 
-21. `if not astronaut_path.exists():`
-    - Checks whether the astronaut file is missing.
-
-22. `io.imsave(astronaut_path, data.astronaut())`
-    - Loads and saves scikit-image's RGB astronaut sample.
-
-23. `print(f"scikit-image version: {skimage.__version__}")`
+21. `print(f"scikit-image version: {skimage.__version__}")`
     - Prints the library version. The leading `f` creates an f-string, so the expression inside braces is evaluated.
 
-24. `print(f"Images: {IMAGE_DIR.resolve()}")`
+22. `print(f"Images: {IMAGE_DIR.resolve()}")`
     - Prints the absolute image-directory path. `resolve()` converts the path to its complete form.
 
 ---
@@ -104,11 +98,11 @@ Important vocabulary:
 
 ### What to tell the TA
 
-> An image becomes a NumPy array when it is loaded. I inspect its shape to understand its dimensions, its dtype to understand how intensities are stored, and one pixel to demonstrate array indexing. Both images are RGB, so each pixel has three channel values. I then display both images side by side.
+> An image becomes a NumPy array when it is loaded. I inspect its shape to understand its dimensions, its dtype to understand how intensities are stored, and one pixel to demonstrate array indexing. The supplied coins image is already grayscale with shape `(303, 384)`, while the astronaut is RGB with shape `(512, 512, 3)`. I then display both images side by side.
 
 If asked about `[1, 100, 1]`, say:
 
-> NumPy uses zero-based indexing. This selects row 1, column 100, and channel 1. RGB channels are numbered 0, 1, and 2, so channel 1 is green.
+> NumPy uses zero-based indexing. The grayscale coins image has no channel axis, so I use `[1, 100]`. For the RGB astronaut, `[1, 100, 1]` selects row 1, column 100, and green channel 1. Trying three indices on the two-dimensional coins image would cause an indexing error.
 
 ### Line-by-line explanation
 
@@ -124,22 +118,28 @@ If asked about `[1, 100, 1]`, say:
 4. `for ax, image, name in zip(axes, [coins, astronaut], ["coins.jpg", "astronaut.jpg"]):`
    - `zip` combines the corresponding axis, image, and filename. The `for` loop processes both images without duplicating code.
 
-5. `print(f"{name}: shape={image.shape}, dtype={image.dtype}, pixel[1,100,1]={image[1,100,1]}")`
-   - Prints the image name, dimensions, storage type, and selected green-channel intensity.
+5. `sample = image[1, 100] if image.ndim == 2 else image[1, 100, 1]`
+   - Uses a conditional expression: select a single grayscale pixel for a 2-D image, otherwise select the green channel of an RGB pixel.
 
-6. `ax.imshow(image)`
-   - Displays the current image on the current axis.
+6. `sample_index = "[1,100]" if image.ndim == 2 else "[1,100,1]"`
+   - Builds the correct index label for the printed output.
 
-7. `ax.set_title(name)`
+7. `print(f"{name}: ...")`
+   - Prints the image name, dimensions, storage type, selected index, and pixel value.
+
+8. `ax.imshow(image, cmap="gray" if image.ndim == 2 else None)`
+   - Displays grayscale data with a gray color map and lets Matplotlib use normal RGB rendering for the astronaut.
+
+9. `ax.set_title(name)`
    - Places the filename above the image.
 
-8. `ax.axis("off")`
+10. `ax.axis("off")`
    - Hides coordinate ticks and borders because they are unnecessary for this image view.
 
-9. `plt.tight_layout()`
+11. `plt.tight_layout()`
    - Automatically adjusts spacing so the plots and titles do not overlap.
 
-10. `plt.show()`
+12. `plt.show()`
     - Renders the completed figure in the notebook.
 
 ---
@@ -148,14 +148,14 @@ If asked about `[1, 100, 1]`, say:
 
 ### What to tell the TA
 
-> I convert each RGB image to grayscale with `rgb2gray`. The spatial dimensions remain the same, but the three-channel dimension disappears because each pixel now has one luminance value. The JPEG input uses `uint8` values from 0 to 255. The grayscale result uses floating-point values from 0 to 1. Grayscale simplifies later operations because we compare one intensity per pixel instead of three colors.
+> The supplied coins image is already grayscale, so I use `img_as_float` to normalize its `uint8` values from [0, 255] into floating-point values in [0, 1]. The astronaut is RGB, so I use `rgb2gray`; its three-channel dimension disappears because each pixel becomes one luminance value. Grayscale simplifies later operations because we compare one intensity per pixel instead of three colors.
 
 Important detail: grayscale is not simply an average of R, G, and B. The conversion uses a weighted luminance calculation because human vision does not perceive all colors equally.
 
 ### Line-by-line explanation
 
-1. `coins_gray = rgb2gray(coins)`
-   - Converts the coins RGB array into a two-dimensional grayscale array.
+1. `coins_gray = img_as_float(coins)`
+   - The coins file is already two-dimensional grayscale. This converts its numeric representation from `uint8` [0, 255] to `float64` [0, 1] without inventing color channels.
 
 2. `astronaut_gray = rgb2gray(astronaut)`
    - Performs the same conversion for the astronaut.
@@ -167,7 +167,7 @@ Important detail: grayscale is not simply an average of R, G, and B. The convers
    - Prints a formatted comparison. `:9s` reserves nine characters for the name so the output aligns neatly.
 
 5. `{original.shape}, {original.dtype} -> {grayscale.shape}, {grayscale.dtype}`
-   - Shows the change from RGB shape and integer dtype to grayscale shape and floating-point dtype.
+   - Shows the change from integer to floating point for both images, and the removal of the astronaut's RGB channel dimension. The coins shape remains two-dimensional because it was already grayscale.
 
 6. `grayscale.min()` and `grayscale.max()`
    - Return the darkest and brightest values. `:.3f` prints each with three digits after the decimal point.
