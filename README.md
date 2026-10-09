@@ -2,7 +2,7 @@
 
 This repository implements all tasks in the Lab 4 assignment in a Jupyter notebook.
 
-## Contents
+## Contents 1
 
 - `notebooks/lab4_image_processing.ipynb` - completed, executable lab report
 - `images/coins.jpg` and `images/astronaut.jpg` - the original images supplied with the lab
