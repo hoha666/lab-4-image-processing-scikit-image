@@ -147,6 +147,8 @@ If asked about `[1, 100, 1]`, say:
 
 > The supplied coins image is already grayscale, so I use `img_as_float` to normalize its `uint8` values from [0, 255] into floating-point values in [0, 1]. The astronaut is RGB, so I use `rgb2gray`; its three-channel dimension disappears because each pixel becomes one luminance value. Grayscale simplifies later operations because we compare one intensity per pixel instead of three colors.
 
+**Short before-and-after explanation:** The coins image changes from `(303, 384), uint8` to `(303, 384), float64`. Its shape stays the same because it was already grayscale; only its intensity representation changes from 0-255 integers to 0-1 decimals. The astronaut changes from `(512, 512, 3), uint8` to `(512, 512), float64`. Its final dimension disappears because RGB has three values per pixel, while grayscale has one.
+
 Important detail: grayscale is not simply an average of R, G, and B. The conversion uses a weighted luminance calculation because human vision does not perceive all colors equally.
 
 ### Line-by-line explanation
