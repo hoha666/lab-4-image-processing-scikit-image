@@ -198,58 +198,53 @@ Important detail: grayscale is not simply an average of R, G, and B. The convers
 
 ### What to tell the TA
 
-> `resize` and `rescale` both change image dimensions, but they express the target differently. `resize` accepts exact output dimensions, so I choose 300 by 200 pixels. `rescale` accepts a multiplier, so factors 0.75, 0.5, and 0.25 preserve the original aspect ratio. I enable anti-aliasing to reduce jagged edges and sampling artifacts during downscaling.
+> Following the PDF example, I use the grayscale astronaut from Task 2. `resize` accepts exact output dimensions, so I choose one quarter of the original height and width: 128 by 128 pixels. `rescale` accepts a multiplier, so I apply the required factors 0.75, 0.5, and 0.25. Because the input is grayscale, every result is a two-dimensional array.
 
-If asked why the shapes still contain `3`, say:
-
-> `channel_axis=-1` tells `rescale` that the final axis contains color channels. It rescales height and width without treating RGB as a spatial dimension.
+The important difference is that `resize` receives the final shape we want, while `rescale` receives a factor that is multiplied by the original dimensions.
 
 ### Line-by-line explanation
 
-1. `astronaut_resized = resize(astronaut, (300, 200), anti_aliasing=True)`
-   - Produces an image with exactly 300 rows and 200 columns. The RGB channel is preserved automatically.
+1. `new_height = astronaut_gray.shape[0] // 4`
+   - Takes the original grayscale height, 512, and uses integer division by 4 to obtain 128.
 
-2. `scale_factors = [0.75, 0.5, 0.25]`
-   - Creates a list of the three required scale multipliers.
+2. `new_width = astronaut_gray.shape[1] // 4`
+   - Takes the original grayscale width, 512, and divides it by 4 to obtain 128.
 
-3. `astronaut_rescaled = { ... }`
-   - Creates a dictionary. Each scale factor becomes a key and its rescaled image becomes the value.
+3. `astronaut_resized = resize(astronaut_gray, (new_height, new_width), anti_aliasing=True)`
+   - Resizes the grayscale astronaut to the exact chosen shape `(128, 128)`. Anti-aliasing helps reduce visual artifacts when making an image smaller.
 
-4. `factor: rescale(astronaut, factor, channel_axis=-1, anti_aliasing=True)`
-   - Rescales the image by the current factor, marks the last axis as RGB channels, and enables anti-aliasing.
+4. `astronaut_rescaled_075 = rescale(astronaut_gray, 0.75, anti_aliasing=False)`
+   - Multiplies both dimensions by 0.75, producing shape `(384, 384)`, as requested in the PDF.
 
-5. `for factor in scale_factors`
-   - This dictionary comprehension repeats the rescaling operation for all three factors.
+5. `astronaut_rescaled_050 = rescale(astronaut_gray, 0.50, anti_aliasing=False)`
+   - Multiplies both dimensions by 0.50, producing shape `(256, 256)`.
 
-6. `print(f"Original: {astronaut.shape}")`
-   - Prints the input dimensions for comparison.
+6. `astronaut_rescaled_025 = rescale(astronaut_gray, 0.25, anti_aliasing=False)`
+   - Multiplies both dimensions by 0.25, producing shape `(128, 128)`.
 
-7. `print(f"Resized to chosen dimensions: {astronaut_resized.shape}")`
-   - Confirms the exact resize result.
+7. The five `print(...)` lines
+   - Print the original and resulting shapes so we can compare the exact resize with the three scale factors.
 
-8. `for factor, image in astronaut_rescaled.items():`
-   - Loops over every key-value pair in the dictionary.
+8. `fig, axes = plt.subplots(1, 4, figsize=(15, 5))`
+   - Creates four side-by-side plotting areas.
 
-9. `print(f"Rescaled by {factor}: {image.shape}")`
-   - Shows how each multiplier changes the shape.
+9. `axes[0].imshow(astronaut_resized, cmap="gray")`
+   - Displays the image created with exact dimensions.
 
-10. `fig, axes = plt.subplots(1, 4, figsize=(15, 5))`
-    - Creates four axes: one for the exact resize and three for the scale factors.
+10. The next three `imshow` lines
+    - Display the results for scale factors 0.75, 0.50, and 0.25.
 
-11. `axes[0].imshow(astronaut_resized)`
-    - Displays the exact-size result.
+11. The four `set_title` lines
+    - Label each result so the operations are easy to compare.
 
-12. `axes[0].set_title("Resize: 300 x 200")`
-    - Labels the exact-size result.
+12. `for ax in axes:`
+    - Goes through all four plotting areas.
 
-13. `for ax, (factor, image) in zip(axes[1:], astronaut_rescaled.items()):`
-    - Pairs the remaining three axes with the three dictionary entries. `axes[1:]` means all axes starting at index 1.
+13. `ax.axis("off")`
+    - Hides coordinate axes so only the images and titles remain.
 
-14. `ax.imshow(image)` and `ax.set_title(f"Rescale: {factor}")`
-    - Display and label each scaled image.
-
-15. The final loop, `tight_layout`, and `show`
-    - Hide the axes, improve spacing, and display the figure.
+14. `plt.tight_layout()` and `plt.show()`
+    - Improve the spacing and display the completed comparison.
 
 ---
 
