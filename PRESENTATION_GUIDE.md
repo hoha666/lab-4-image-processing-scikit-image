@@ -1,558 +1,328 @@
-# Lab 4 Presentation and Python Study Guide
+# Lab 4 Presentation Guide
 
-This guide follows `notebooks/lab4_image_processing.ipynb`. Use the **What to tell the TA** parts as a short presentation script. Use the **Line-by-line explanation** parts to understand the Python.
+This guide matches the current `notebooks/lab4_image_processing.ipynb`. The code and explanations follow Tasks 0-6 in the PDF.
 
-## One-minute overview
+## Short introduction
 
-> In this lab, we represent images as NumPy arrays and use scikit-image to perform a basic image-processing pipeline. We load and inspect one grayscale image and one RGB image, prepare grayscale versions, resize and rescale the grayscale astronaut, segment the grayscale coins using a threshold, and find a coin using template matching. Finally, we implement normalized cross-correlation ourselves and verify that it finds the same location as scikit-image.
+> In this lab, images are handled as NumPy arrays. I load and inspect the supplied coins and astronaut images, prepare grayscale versions, resize and rescale the astronaut, segment the coins with a threshold, apply scikit-image template matching, and implement my own simple template matcher.
 
-Important vocabulary:
-
-- **Pixel:** one picture element. A grayscale pixel has one intensity; an RGB pixel has red, green, and blue values.
-- **Shape:** the dimensions of an array. RGB images normally have `(height, width, 3)`.
-- **dtype:** the data type stored in an array, such as `uint8`, `float64`, or `bool`.
-- **Intensity:** the brightness value of a pixel.
-- **Grayscale:** an image with one brightness value per pixel instead of three color channels.
-- **Segmentation:** dividing an image into meaningful regions, such as object and background.
-- **Template matching:** searching for the location most similar to a smaller example image.
-
----
-
-## Section 0 - Imports and setup
+## Task 0 - Software setup
 
 ### What to tell the TA
 
-> First, I import the libraries needed for arrays, plotting, image processing, and file paths. I make the notebook independent of the current working directory and point it to the two JPEG files supplied with the lab. I also check that both required files exist so a missing input produces a clear error.
+> The lab requires scikit-image. The required packages are listed in `requirements.txt` and can be installed with `pip install -r requirements.txt`.
 
-### Line-by-line explanation
+### Setup code
 
-1. `from pathlib import Path`
-   - Imports the `Path` class, which provides a clean, operating-system-independent way to work with folders and filenames.
+1. `import os`
+   - Provides `os.path.join`, which joins a folder path and filename.
 
-2. `import os`
-   - Imports Python's operating-system utilities. The notebook retains this import to reflect the lab setup, although `Path` handles the paths in our implementation.
+2. `import numpy as np`
+   - Imports NumPy for arrays and calculations.
 
-3. `import numpy as np`
-   - Imports NumPy and gives it the conventional short name `np`. Images are NumPy arrays, and later we use NumPy for calculations and array indexing.
+3. `import matplotlib.pyplot as plt`
+   - Imports plotting functions for images and histograms.
 
-4. `import matplotlib.pyplot as plt`
-   - Imports Matplotlib's plotting interface as `plt`. We use it to display images, histograms, markers, and rectangles.
+4. `import skimage`
+   - Imports the scikit-image package required by the lab.
 
-5. `import skimage`
-   - Imports the top-level scikit-image package. We use it here to print the installed library version.
+5. `from skimage import data, io`
+   - `data` provides the Task 5 coins example and `io` reads the supplied JPEG files.
 
-6. `from skimage import data, io`
-   - Imports `data`, which contains sample images, and `io`, which reads and writes image files.
+6. `from skimage.color import rgb2gray`
+   - Imports the RGB-to-grayscale conversion function.
 
-7. `from skimage.color import rgb2gray`
-   - Imports the function used to convert the RGB astronaut image to grayscale.
+7. `from skimage.transform import rescale, resize`
+   - Imports the two size-changing functions required in Task 3.
 
-8. `from skimage.transform import rescale, resize`
-   - Imports the two size-changing functions used in Task 3.
+8. `from skimage.feature import match_template`
+   - Imports scikit-image's template matcher for Task 5.
 
-9. `from skimage.feature import match_template`
-   - Imports scikit-image's ready-made normalized-correlation template matcher.
+9. `from skimage.util import img_as_float`
+   - Converts the already-grayscale coins image from `uint8` to floating-point form.
 
-10. `from skimage.util import img_as_float`
-    - Imports a safe image-type converter. It changes the grayscale coins array from `uint8` values in [0, 255] to floating-point values in [0, 1].
+10. `filename_path = "../images"`
+    - Points from the `notebooks` folder to the repository's `images` folder.
 
-11. `plt.rcParams["figure.figsize"] = (10, 5)`
-    - Changes Matplotlib's default figure size to 10 inches wide and 5 inches high.
-
-12. `plt.rcParams["image.cmap"] = "gray"`
-    - Makes grayscale the default color map when a two-dimensional image is displayed.
-
-13. `cwd = Path.cwd()`
-    - Gets the folder from which the notebook is currently running. `cwd` means current working directory.
-
-14. `PROJECT_ROOT = cwd.parent if cwd.name == "notebooks" else cwd`
-    - This is a conditional expression. If the notebook runs inside the `notebooks` folder, the project root is its parent; otherwise, the current folder is treated as the root.
-
-15. `IMAGE_DIR = PROJECT_ROOT / "images"`
-    - Uses Path's `/` operator to join the project root with the `images` folder name.
-
-16. `coins_path = IMAGE_DIR / "coins.jpg"`
-    - Constructs the full path to `coins.jpg`.
-
-17. `astronaut_path = IMAGE_DIR / "astronaut.jpg"`
-    - Constructs the full path to `astronaut.jpg`.
-
-18. `if not coins_path.exists() or not astronaut_path.exists():`
-    - Checks that both supplied files are present. `or` makes the condition true when either file is missing.
-
-19. `raise FileNotFoundError(...)`
-    - Stops execution with a useful message instead of silently substituting different images.
-
-20. `print(f"scikit-image version: {skimage.__version__}")`
-    - Prints the library version. The leading `f` creates an f-string, so the expression inside braces is evaluated.
-
-21. `print(f"Images: {IMAGE_DIR.resolve()}")`
-    - Prints the absolute image-directory path. `resolve()` converts the path to its complete form.
+11. `os.path.join(...)`
+    - Creates the complete paths to `coins.jpg` and `astronaut.jpg`.
 
 ---
 
-## Section 1 - Load, inspect, and visualize images
+## Task 1 - Load and visualize images
 
 ### What to tell the TA
 
-> I load each image with `io.imread`. An image becomes a NumPy array, so I can print its shape, dtype, and a selected pixel value. The coins image is grayscale with shape `(303, 384)`, while the astronaut is RGB with shape `(512, 512, 3)`. I then display each image with `plt.imshow`.
+> I load both supplied images with `io.imread`. An image becomes a NumPy array, so I can inspect its shape, dtype, and pixel values. The coins image is already grayscale and has shape `(303, 384)`. The astronaut is RGB and has shape `(512, 512, 3)`.
 
-If asked about `[1, 100, 1]`, say:
-
-> NumPy uses zero-based indexing. The grayscale coins image has no channel axis, so I use `[1, 100]`. For the RGB astronaut, `[1, 100, 1]` selects row 1, column 100, and green channel 1. Trying three indices on the two-dimensional coins image would cause an indexing error.
+The last `3` in `(512, 512, 3)` means that every astronaut pixel contains red, green, and blue values.
 
 ### Line-by-line explanation
 
 1. `coins = io.imread(coins_path)`
-   - Reads the coins JPEG and stores its pixel array in `coins`.
+   - Reads `coins.jpg` into a NumPy array.
 
 2. `print("Coins shape:", coins.shape)`
-   - Prints `(303, 384)`, which means 303 rows and 384 columns.
+   - Prints `(303, 384)`: 303 rows and 384 columns.
 
 3. `print("Coins dtype:", coins.dtype)`
-   - Prints `uint8`, meaning each intensity is stored as an integer from 0 to 255.
+   - Prints `uint8`, meaning integer intensities from 0 to 255.
 
-4. `print("Coins pixel [1, 100]:", coins[1, 100])`
-   - Prints the grayscale intensity at row 1 and column 100. The coins image has no color-channel dimension.
+4. `coins[1, 100]`
+   - Gets the grayscale intensity at row 1 and column 100.
 
 5. `plt.imshow(coins, cmap="gray")`
-   - Displays the coins image using a grayscale color map.
+   - Displays the coins image in grayscale.
 
-6. `plt.axis("off")`
-   - Hides the plot axes because they are not needed for viewing the image.
+6. `plt.axis("off")` and `plt.show()`
+   - Hide the plot axes and display the image.
 
-7. `plt.show()`
-   - Displays the coins figure.
+7. `astronaut = io.imread(astronaut_path)`
+   - Reads `astronaut.jpg` into a NumPy array.
 
-8. `astronaut = io.imread(astronaut_path)`
-   - Reads the astronaut JPEG into a NumPy array.
+8. `print("Astronaut shape:", astronaut.shape)`
+   - Prints `(512, 512, 3)`: height, width, and three RGB channels.
 
-9. `print("Astronaut shape:", astronaut.shape)`
-   - Prints `(512, 512, 3)`: 512 rows, 512 columns, and three RGB color channels.
+9. `print("Astronaut dtype:", astronaut.dtype)`
+   - Prints `uint8`.
 
-10. `print("Astronaut dtype:", astronaut.dtype)`
-    - Prints `uint8`, so every red, green, and blue value is an integer from 0 to 255.
+10. `astronaut[1, 100, 1]`
+    - Gets the green-channel value at row 1 and column 100. Channel 0 is red, 1 is green, and 2 is blue.
 
-11. `print("Astronaut pixel [1, 100, 1]:", astronaut[1, 100, 1])`
-    - Prints the green-channel value at row 1 and column 100. Channel index 1 means green.
-
-12. `plt.imshow(astronaut)`
-    - Displays the RGB astronaut in color.
-
-13. `plt.axis("off")` and `plt.show()`
-    - Hide the axes and display the astronaut figure.
+11. `plt.imshow(astronaut)`
+    - Displays the RGB image in color.
 
 ---
 
-## Section 2 - Convert RGB to grayscale
+## Task 2 - Color-space conversion
 
 ### What to tell the TA
 
-> The supplied coins image is already grayscale, so I use `img_as_float` to normalize its `uint8` values from [0, 255] into floating-point values in [0, 1]. The astronaut is RGB, so I use `rgb2gray`; its three-channel dimension disappears because each pixel becomes one luminance value. Grayscale simplifies later operations because we compare one intensity per pixel instead of three colors.
+> The coins file is already grayscale, so `img_as_float` changes only its dtype and intensity range. The astronaut is RGB, so `rgb2gray` removes its color-channel dimension and calculates one grayscale intensity per pixel.
 
-**Short before-and-after explanation:** The coins image changes from `(303, 384), uint8` to `(303, 384), float64`. Its shape stays the same because it was already grayscale; only its intensity representation changes from 0-255 integers to 0-1 decimals. The astronaut changes from `(512, 512, 3), uint8` to `(512, 512), float64`. Its final dimension disappears because RGB has three values per pixel, while grayscale has one.
+### Answer required by the PDF
 
-Important detail: grayscale is not simply an average of R, G, and B. The conversion uses a weighted luminance calculation because human vision does not perceive all colors equally.
+- Coins before: shape `(303, 384)`, dtype `uint8`, values 0-255.
+- Coins after: shape `(303, 384)`, dtype `float64`, values 0-1.
+- Its shape is unchanged because it was already grayscale.
+- Astronaut before: shape `(512, 512, 3)`, dtype `uint8`, values 0-255.
+- Astronaut after: shape `(512, 512)`, dtype `float64`, values 0-1.
+- The final dimension disappears because three RGB values become one grayscale intensity.
 
 ### Line-by-line explanation
 
 1. `coins_gray = img_as_float(coins)`
-   - The coins file is already two-dimensional grayscale. This converts its numeric representation from `uint8` [0, 255] to `float64` [0, 1] without inventing color channels.
+   - Converts coins from `uint8` values to floating-point values without changing its shape.
 
 2. `astronaut_gray = rgb2gray(astronaut)`
-   - Performs the same conversion for the astronaut.
+   - Converts the three astronaut color channels into one grayscale channel.
 
-3. `for name, original, grayscale in [...]`
-   - Loops over two tuples. Each tuple contains a label, the original image, and its grayscale version.
+3. The four `print(...)` lines
+   - Show the shape and dtype before and after each conversion.
 
-4. `print(f"{name:9s}: ...")`
-   - Prints a formatted comparison. `:9s` reserves nine characters for the name so the output aligns neatly.
+4. `plt.imshow(coins_gray, cmap="gray")`
+   - Displays the grayscale coins result.
 
-5. `{original.shape}, {original.dtype} -> {grayscale.shape}, {grayscale.dtype}`
-   - Shows the change from integer to floating point for both images, and the removal of the astronaut's RGB channel dimension. The coins shape remains two-dimensional because it was already grayscale.
-
-6. `grayscale.min()` and `grayscale.max()`
-   - Return the darkest and brightest values. `:.3f` prints each with three digits after the decimal point.
-
-7. `fig, axes = plt.subplots(1, 2, figsize=(11, 5))`
-   - Creates two side-by-side axes for the grayscale results.
-
-8. `axes[0].imshow(coins_gray, cmap="gray")`
-   - Displays coins on the first axis. `cmap="gray"` maps low values to black and high values to white.
-
-9. `axes[0].set_title("Coins - grayscale")`
-   - Adds the first title.
-
-10. `axes[1].imshow(astronaut_gray, cmap="gray")`
-    - Displays the grayscale astronaut on the second axis.
-
-11. `axes[1].set_title("Astronaut - grayscale")`
-    - Adds the second title.
-
-12. `for ax in axes: ax.axis("off")`
-    - A compact one-line loop that hides axes on both plots.
-
-13. `plt.tight_layout()` and `plt.show()`
-    - Correct the spacing and render the figure.
+5. `plt.imshow(astronaut_gray, cmap="gray")`
+   - Displays the grayscale astronaut result.
 
 ---
 
-## Section 3 - Resize and rescale
+## Task 3 - Image rescale and resize
 
 ### What to tell the TA
 
-> Following the PDF example, I use the grayscale astronaut from Task 2. `resize` accepts exact output dimensions, so I choose one quarter of the original height and width: 128 by 128 pixels. `rescale` accepts a multiplier, so I apply the required factors 0.75, 0.5, and 0.25. Because the input is grayscale, every result is a two-dimensional array.
+> Following the PDF example, I use the grayscale astronaut from Task 2. I resize it to a chosen shape of 128 by 128. I also rescale it by the required factors 0.75, 0.5, and 0.25.
 
-The important difference is that `resize` receives the final shape we want, while `rescale` receives a factor that is multiplied by the original dimensions.
+### Observation required by the PDF
+
+`resize` receives the exact output shape. `rescale` receives a factor that is multiplied by the original dimensions.
+
+- Original: `(512, 512)`
+- Resize to chosen dimensions: `(128, 128)`
+- Rescale by 0.75: `(384, 384)`
+- Rescale by 0.50: `(256, 256)`
+- Rescale by 0.25: `(128, 128)`
+
+The resize and 0.25 rescale have the same shape in this example, but they were specified differently.
 
 ### Line-by-line explanation
 
 1. `new_height = astronaut_gray.shape[0] // 4`
-   - Takes the original grayscale height, 512, and uses integer division by 4 to obtain 128.
+   - Divides the original height by 4: 512 becomes 128.
 
 2. `new_width = astronaut_gray.shape[1] // 4`
-   - Takes the original grayscale width, 512, and divides it by 4 to obtain 128.
+   - Divides the original width by 4.
 
-3. `astronaut_resized = resize(astronaut_gray, (new_height, new_width), anti_aliasing=True)`
-   - Resizes the grayscale astronaut to the exact chosen shape `(128, 128)`. Anti-aliasing helps reduce visual artifacts when making an image smaller.
+3. `resize(astronaut_gray, (new_height, new_width), anti_aliasing=True)`
+   - Produces the exact chosen shape. Anti-aliasing reduces visual artifacts while shrinking.
 
-4. `astronaut_rescaled_075 = rescale(astronaut_gray, 0.75, anti_aliasing=False)`
-   - Multiplies both dimensions by 0.75, producing shape `(384, 384)`, as requested in the PDF.
+4. `rescale(astronaut_gray, 0.75, anti_aliasing=False)`
+   - Multiplies both dimensions by 0.75.
 
-5. `astronaut_rescaled_050 = rescale(astronaut_gray, 0.50, anti_aliasing=False)`
-   - Multiplies both dimensions by 0.50, producing shape `(256, 256)`.
+5. The next two `rescale` lines
+   - Repeat the operation with factors 0.50 and 0.25.
 
-6. `astronaut_rescaled_025 = rescale(astronaut_gray, 0.25, anti_aliasing=False)`
-   - Multiplies both dimensions by 0.25, producing shape `(128, 128)`.
+6. The five `print(...)` lines
+   - Show the original and resulting shapes.
 
-7. The five `print(...)` lines
-   - Print the original and resulting shapes so we can compare the exact resize with the three scale factors.
-
-8. `fig, axes = plt.subplots(1, 4, figsize=(15, 5))`
-   - Creates four side-by-side plotting areas.
-
-9. `axes[0].imshow(astronaut_resized, cmap="gray")`
-   - Displays the image created with exact dimensions.
-
-10. The next three `imshow` lines
-    - Display the results for scale factors 0.75, 0.50, and 0.25.
-
-11. The four `set_title` lines
-    - Label each result so the operations are easy to compare.
-
-12. `for ax in axes:`
-    - Goes through all four plotting areas.
-
-13. `ax.axis("off")`
-    - Hides coordinate axes so only the images and titles remain.
-
-14. `plt.tight_layout()` and `plt.show()`
-    - Improve the spacing and display the completed comparison.
+7. Each `plt.imshow(..., cmap="gray")`
+   - Displays one result so the size and detail can be observed.
 
 ---
 
-## Section 4 - Histogram and threshold segmentation
+## Task 4 - Image thresholding
 
 ### What to tell the TA
 
-> I use the grayscale coins image from Task 2. First, I check its dtype. It is `float64`, so its intensity values are between 0 and 1. I plot a histogram with 256 bins to inspect how the intensities are distributed, then select `t = 0.42`. As shown in the PDF, `coins_gray < t` creates a binary image: darker pixels below 0.42 become `True`, and the remaining pixels become `False`.
+> I use the grayscale coins image from Task 2. First, I check its dtype and plot a 256-bin histogram. Because the image is `float64`, its values are in the range 0-1. I select `t = 0.42` from the histogram and create the binary image with `coins_gray < t`.
 
-If asked whether 0.42 is the only correct threshold, say:
+### Answer required by the PDF
 
-> No. It is a manually selected value based on the histogram. A different threshold would change which pixels belong to each group.
+The threshold must match the image dtype. A threshold such as 100 would suit some `uint8` images, but it would be incorrect here because `coins_gray` is `float64` in the range 0-1. Therefore, `t = 0.42` is used. Pixels below 0.42 become `True`; pixels at or above 0.42 become `False`.
 
 ### Line-by-line explanation
 
 1. `print("Grayscale dtype:", coins_gray.dtype)`
-   - Prints `float64`. This tells us that an appropriate threshold must be between 0 and 1, rather than between 0 and 255.
+   - Confirms that the image is `float64`.
 
 2. `coins_gray.ravel()`
-   - Flattens the two-dimensional image into one sequence containing all pixel intensities.
+   - Flattens the 2-D image into one sequence of pixel values.
 
-3. `plt.hist(coins_gray.ravel(), bins=256)`
-   - Calculates and displays the histogram using 256 intensity groups, as in the PDF example.
+3. `plt.hist(..., bins=256)`
+   - Calculates and displays a histogram with 256 groups.
 
-4. `plt.title(...)`, `plt.xlabel(...)`, and `plt.ylabel(...)`
-   - Label the histogram so its meaning is clear.
+4. `t = 0.42`
+   - Stores the selected threshold.
 
-5. `plt.show()`
-   - Displays the histogram so we can inspect it before choosing the threshold.
+5. `binary = coins_gray < t`
+   - Compares every pixel with the threshold and returns `True` or `False`.
 
-6. `t = 0.42`
-   - Stores the selected threshold. Because the image is `float64` in [0, 1], 0.42 is a valid intensity value.
-
-7. `binary = coins_gray < t`
-   - Compares every grayscale pixel with 0.42. The result is a Boolean array containing `True` or `False`.
-
-8. `plt.imshow(binary, cmap="gray")`
-   - Displays the Boolean array as a black-and-white image.
-
-9. `plt.title("Binary image with t = 0.42")`
-   - Labels the result with the threshold used.
-
-10. `plt.axis("off")`
-    - Hides axis ticks because they are unnecessary for the binary image.
-
-11. The final `plt.show()`
-    - Displays the completed binary segmentation.
+6. `plt.imshow(binary, cmap="gray")`
+   - Displays the Boolean result as a black-and-white image.
 
 ---
 
-## Section 5 - Template matching with scikit-image
+## Task 5 - Template matching
 
 ### What to tell the TA
 
-> Template matching searches the large image for the position that most closely resembles a smaller template. I crop one coin from rows 170 to 219 and columns 75 to 129. `match_template` computes a normalized correlation score for every valid position. I find the largest score, convert its array index into x-y coordinates, and draw a red rectangle around the best match. The result is `(x=75, y=170)` with a score of 1 because the exact crop is present in the source image.
+> I follow the PDF's sample code. I crop one coin from scikit-image's coins image and use it as the template. `match_template` compares it with every valid location in the full image. The largest score gives the best match.
 
-Remember the coordinate distinction:
+### Explanation required by the PDF
 
-- NumPy indexes arrays as `[row, column]`, which means `[y, x]`.
-- Matplotlib positions shapes as `(x, y)`.
-- That is why the code reverses the index order.
+The red rectangle shows the best-matching region in the full image. The red circle marks the same location in the result image. The best position is `(x=75, y=170)`, which is expected because the template was cropped from that exact location.
 
 ### Line-by-line explanation
 
-1. `template_image = data.coins()`
-   - Loads the original two-dimensional grayscale coins sample.
+1. `image = data.coins()`
+   - Loads scikit-image's grayscale coins data used in the PDF example.
 
-2. `coin = template_image[170:220, 75:130]`
-   - Crops rows 170 through 219 and columns 75 through 129. Python stops before the ending index, so the crop is 50 by 55 pixels.
+2. `coin = image[170:220, 75:130]`
+   - Crops a 50-by-55-pixel coin template.
 
-3. `result = match_template(template_image, coin)`
-   - Slides the template over the image and returns a two-dimensional response map of similarity scores.
+3. `result = match_template(image, coin)`
+   - Creates a result array containing a match score for every valid position.
 
 4. `np.argmax(result)`
-   - Returns the flattened index of the largest value in the response map.
+   - Finds the position of the largest match score.
 
-5. `np.unravel_index(np.argmax(result), result.shape)`
-   - Converts that flattened index back into the response map's `(row, column)` coordinates.
+5. `np.unravel_index(..., result.shape)`
+   - Changes the single maximum index into row and column coordinates.
 
-6. `ij = ...`
-   - Stores the `(row, column)` pair.
+6. `x, y = ij[::-1]`
+   - Reverses `(row, column)` into plotting coordinates `(x, y)`.
 
-7. `x, y = ij[::-1]`
-   - `[::-1]` reverses the pair from `(row, column)` to `(column, row)`, which corresponds to `(x, y)`.
+7. `plt.subplot(1, 3, ...)`
+   - Creates panels for the template, full image, and result.
 
-8. `fig = plt.figure(figsize=(12, 4))`
-   - Creates the overall figure.
+8. `plt.Rectangle((x, y), wcoin, hcoin, ...)`
+   - Creates the red rectangle at the best position.
 
-9. `ax1`, `ax2`, and `ax3 = plt.subplot(1, 3, ...)`
-   - Create three axes in a one-row, three-column layout.
+9. `ax2.add_patch(rectangle)`
+   - Adds the rectangle to the full image.
 
-10. `ax1.imshow(coin)` and `ax1.set_title("Template")`
-    - Display and label the small coin template.
-
-11. `ax2.imshow(template_image)` and `ax2.set_title("Image")`
-    - Display and label the complete search image.
-
-12. `hcoin, wcoin = coin.shape`
-    - Unpacks the template's height and width into separate variables.
-
-13. `plt.Rectangle((x, y), wcoin, hcoin, ...)`
-    - Creates an unfilled red rectangle at the best top-left position with the same dimensions as the template.
-
-14. `ax2.add_patch(...)`
-    - Adds that rectangle to the full image.
-
-15. `ax3.imshow(result)`
-    - Displays the correlation response map. Bright values indicate stronger similarity.
-
-16. `ax3.plot(x, y, "o", ...)`
-    - Draws an unfilled red circle at the maximum response.
-
-17. The title, axis loop, `tight_layout`, and `show`
-    - Label the result, remove plot decoration, arrange the figure, and render it.
-
-18. `result[y, x]`
-    - Retrieves the best score. Array access is `[y, x]`, even though the plotted point is `(x, y)`.
-
-19. `:.6f`
-    - Formats the score with six digits after the decimal point.
+10. `ax3.plot(x, y, "o", ...)`
+    - Adds the red circle to the result image.
 
 ---
 
-## Section 6 - Our normalized cross-correlation implementation
+## Task 6 - Own template-matching implementation
 
 ### What to tell the TA
 
-> In the final task, I implement normalized cross-correlation, or NCC, without calling `match_template`. Two ordinary `for` loops move the template across every position where it fits. At each position, I subtract the mean from the template and image patch, multiply corresponding pixels, and normalize the result. My implementation finds `(x=75, y=170)` with score 1, exactly matching scikit-image. The code is intentionally simple and readable rather than optimized for speed.
+> I implement my own simple template matcher using sum of squared differences, or SSD. I use the same full image and coin template as Task 5. The template moves over the image one position at a time. The smallest SSD score is the best match.
 
-The NCC idea is:
+### How SSD works
 
-`score = similarity numerator / normalization denominator`
+For each position:
 
-- A score close to `1` means a strong positive match.
-- A score close to `0` means little linear similarity.
-- A score close to `-1` means opposite intensity patterns.
+1. Crop an image patch with the same shape as the template.
+2. Subtract the template from that patch.
+3. Square every difference.
+4. Add the squared differences.
 
-### Function: setup
+Identical images have a score of zero, so `np.argmin` finds the best position.
 
-1. `def normalized_cross_correlation(image, template):`
-   - Defines a reusable function with two input parameters.
+### Line-by-line explanation
 
-2. `"""Find template similarity at every valid position using simple NCC."""`
-   - A docstring that briefly describes the function.
+1. `def own_template_matching(image, template):`
+   - Defines our own reusable matching function.
 
-3. `image = image.astype(float)`
-   - Makes a floating-point copy of the image so calculations can contain decimal values.
+2. `image.astype(float)` and `template.astype(float)`
+   - Convert integer pixels to floating point so subtraction is safe. Without this, unsigned integers could wrap around.
 
-4. `template = template.astype(float)`
-   - Makes a floating-point copy of the template.
+3. `template_height, template_width = template.shape`
+   - Stores the template dimensions.
 
-5. `image_height, image_width = image.shape`
-   - Stores the image's number of rows and columns in clearly named variables.
+4. `result_height` and `result_width`
+   - Calculate how many complete template positions fit inside the image.
 
-6. `template_height, template_width = template.shape`
-   - Stores the template's number of rows and columns.
+5. `scores = np.zeros(...)`
+   - Creates an array in which every SSD score will be stored.
 
-7. `result_height = image_height - template_height + 1`
-   - Calculates how many vertical positions allow the complete template to fit.
+6. `for y in range(result_height):`
+   - Moves the template down through every valid row.
 
-8. `result_width = image_width - template_width + 1`
-   - Calculates the number of valid horizontal positions.
+7. `for x in range(result_width):`
+   - Moves the template across every valid column.
 
-9. `result = np.zeros((result_height, result_width))`
-   - Creates an output array filled with zeros. One similarity score will be stored at each location.
+8. `patch = image[y:y + template_height, x:x + template_width]`
+   - Crops the current image patch.
 
-### Function: prepare the template
+9. `difference = patch - template`
+   - Calculates the pixel-by-pixel difference.
 
-10. `template_zero_mean = template - np.mean(template)`
-    - Calculates the average template brightness and subtracts it from every template pixel.
+10. `scores[y, x] = np.sum(difference ** 2)`
+    - Squares and adds all differences, then stores the SSD score.
 
-11. `template_length = np.sqrt(np.sum(template_zero_mean ** 2))`
-    - Squares the centered template values, adds them, and takes the square root. This is the template's normalization length.
+11. `return scores`
+    - Returns the completed score image.
 
-### Function: examine every image position
+12. `np.argmin(own_result)`
+    - Finds the smallest score because smaller SSD means a better match.
 
-12. `for y in range(result_height):`
-    - Moves through every valid vertical position. `y` represents the row.
+13. `np.unravel_index(...)`
+    - Converts the position into `y` and `x` coordinates.
 
-13. `for x in range(result_width):`
-    - Inside each row, moves through every valid horizontal position. `x` represents the column.
+14. The rectangle and circle
+    - Show the best position in the original image and score image.
 
-14. `patch = image[y:y + template_height, x:x + template_width]`
-    - Crops an image patch at the current position with exactly the same size as the template.
-
-15. `patch_zero_mean = patch - np.mean(patch)`
-    - Subtracts the patch's average brightness from each patch pixel.
-
-16. `numerator = np.sum(patch_zero_mean * template_zero_mean)`
-    - Multiplies corresponding centered pixels and adds the products. A large positive value means similar patterns.
-
-17. `patch_length = np.sqrt(np.sum(patch_zero_mean ** 2))`
-    - Calculates the normalization length of the current patch.
-
-18. `denominator = patch_length * template_length`
-    - Multiplies the two lengths to form the NCC denominator.
-
-19. `if denominator != 0:`
-    - Checks that division is safe. A completely constant patch has zero length.
-
-20. `result[y, x] = numerator / denominator`
-    - Calculates the normalized similarity and stores it at the current location.
-
-21. `return result`
-    - Sends the completed response map back to the caller.
-
-### Calling and visualizing our function
-
-22. `own_result = normalized_cross_correlation(template_image, coin)`
-    - Runs our matcher using the same full image and template used in Task 5.
-
-23. `own_y, own_x = np.unravel_index(np.argmax(own_result), own_result.shape)`
-    - Finds the largest score and directly stores its row as `own_y` and column as `own_x`.
-
-24. `fig, axes = plt.subplots(1, 3, figsize=(12, 4))`
-    - Creates panels for the template, matched image, and NCC response map.
-
-25. `axes[0].imshow(coin)` and its title
-    - Display the search template.
-
-26. `axes[1].imshow(template_image)`
-    - Displays the full image.
-
-27. `axes[1].add_patch(plt.Rectangle(...))`
-    - Marks our best match with a red rectangle.
-
-28. `axes[2].imshow(own_result)`
-    - Displays our NCC response map.
-
-29. `axes[2].plot(own_x, own_y, "o", ...)`
-    - Marks the maximum response with a red circle.
-
-30. `for ax in axes: ax.axis("off")`
-    - Removes plot axes from all three panels.
-
-31. `plt.tight_layout()` and `plt.show()`
-    - Arrange and render the figure.
-
-32. The first `print(...)`
-    - Reports our best coordinates and score.
-
-33. The second `print(...)`
-    - Reports scikit-image's coordinates for comparison.
-
-34. `print(f"Same best location: {(own_x, own_y) == (x, y)}")`
-    - Compares the two coordinate tuples. It prints `True`, demonstrating that both implementations agree.
-
----
-
-## Likely TA questions and short answers
-
-### Why use NumPy arrays for images?
-
-Images form regular grids of numeric values. NumPy provides efficient storage, indexing, element-wise comparisons, and mathematical operations on those grids.
-
-### What is the difference between `uint8`, `float64`, and `bool`?
-
-- `uint8` stores whole numbers from 0 to 255, common in image files.
-- `float64` stores decimal values; scikit-image commonly represents processed intensities from 0 to 1.
-- `bool` stores only `True` or `False`, suitable for a binary segmentation mask.
-
-### Why convert to grayscale?
-
-It reduces every pixel from three values to one intensity, which simplifies histograms, thresholding, and many matching algorithms.
-
-### Resize versus rescale?
-
-`resize` specifies exact output dimensions. `rescale` specifies a multiplication factor and normally preserves the aspect ratio.
-
-### Why use anti-aliasing?
-
-When reducing image size, many source pixels must become fewer output pixels. Anti-aliasing filters high-frequency detail first, reducing jagged edges and moire patterns.
-
-### What does the histogram show?
-
-The x-axis represents intensity and the y-axis represents the number of pixels with that intensity. Peaks can represent common regions such as background and objects.
-
-### Why is thresholding called segmentation?
-
-It assigns pixels to separate classes. Here the two classes are below-threshold and above-threshold pixels.
-
-### Why is the best template score exactly 1?
-
-The template was cropped directly from the same image. At its original location, the template and patch are identical, so normalized correlation reaches its maximum value.
-
-### Why normalize correlation?
-
-Raw correlation is affected by overall brightness and contrast. Subtracting means and dividing by energy makes the score measure pattern similarity more fairly.
-
-### Did we really implement our own matcher?
-
-Yes. Task 5 uses scikit-image's `match_template`. Task 6 uses basic nested loops to move the template, crop each patch, calculate NCC, find the maximum, and visualize the result. It does not call the library matcher.
+15. The final comparison
+    - Confirms that our matcher finds the same `(x=75, y=170)` position as Task 5.
 
 ---
 
 ## Suggested presentation order
 
-1. State that an image is a NumPy array and show shape, dtype, and pixel indexing.
-2. Show RGB-to-grayscale conversion and explain the shape and dtype changes.
-3. Explain that Task 3 uses the grayscale astronaut, then compare exact resizing with factor-based rescaling.
-4. Show the histogram, explain why `t = 0.42` suits `float64` data in [0, 1], and show the Boolean segmentation.
-5. Show the coin template, response map, and best-match rectangle.
-6. Explain the NCC numerator and denominator at a high level.
-7. Finish by showing that both implementations return `(x=75, y=170)`.
+1. Explain that images are NumPy arrays.
+2. Show the Task 1 shapes, dtypes, and pixel indexing.
+3. Explain the Task 2 before-and-after shape and dtype changes.
+4. Compare `resize` with `rescale` in Task 3.
+5. Explain why `t = 0.42` matches the Task 4 `float64` dtype.
+6. Explain the Task 5 rectangle and result maximum.
+7. Explain Task 6 SSD and why the minimum score is selected.
 
-## Final conclusion to memorize
+## Conclusion to memorize
 
-> This lab taught me that image processing is mainly numerical array processing. I learned how image shape and dtype affect operations, how grayscale simplifies analysis, how resizing differs from rescaling, how a histogram supports threshold selection, and how normalized cross-correlation locates a known pattern. Implementing NCC myself also helped me understand what `match_template` does internally rather than treating it as a black box.
+> This lab taught me how images are represented as NumPy arrays and how shape and dtype affect image processing. I converted images to grayscale, changed image dimensions using resize and rescale, segmented an image using a histogram-based threshold, used scikit-image template matching, and implemented my own simple SSD template matcher.

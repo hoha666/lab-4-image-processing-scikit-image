@@ -24,4 +24,4 @@ Run all cells from top to bottom. Keep both supplied image files in the `images/
 3. Resize and rescale the astronaut image
 4. Threshold the grayscale coins image using its histogram
 5. Match a coin template with `skimage.feature.match_template`
-6. Implement normalized cross-correlation template matching independently
+6. Implement a simple sum-of-squared-differences template matcher independently
