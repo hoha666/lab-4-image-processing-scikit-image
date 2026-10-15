@@ -95,7 +95,7 @@ Important vocabulary:
 
 ### What to tell the TA
 
-> An image becomes a NumPy array when it is loaded. I inspect its shape to understand its dimensions, its dtype to understand how intensities are stored, and one pixel to demonstrate array indexing. The supplied coins image is already grayscale with shape `(303, 384)`, while the astronaut is RGB with shape `(512, 512, 3)`. I then display both images side by side.
+> I load each image with `io.imread`. An image becomes a NumPy array, so I can print its shape, dtype, and a selected pixel value. The coins image is grayscale with shape `(303, 384)`, while the astronaut is RGB with shape `(512, 512, 3)`. I then display each image with `plt.imshow`.
 
 If asked about `[1, 100, 1]`, say:
 
@@ -106,38 +106,41 @@ If asked about `[1, 100, 1]`, say:
 1. `coins = io.imread(coins_path)`
    - Reads the coins JPEG and stores its pixel array in `coins`.
 
-2. `astronaut = io.imread(astronaut_path)`
-   - Reads the astronaut JPEG into another NumPy array.
+2. `print("Coins shape:", coins.shape)`
+   - Prints `(303, 384)`, which means 303 rows and 384 columns.
 
-3. `fig, axes = plt.subplots(1, 2, figsize=(11, 5))`
-   - Creates one figure containing one row and two plotting areas. `fig` is the full figure; `axes` holds the two individual axes.
+3. `print("Coins dtype:", coins.dtype)`
+   - Prints `uint8`, meaning each intensity is stored as an integer from 0 to 255.
 
-4. `for ax, image, name in zip(axes, [coins, astronaut], ["coins.jpg", "astronaut.jpg"]):`
-   - `zip` combines the corresponding axis, image, and filename. The `for` loop processes both images without duplicating code.
+4. `print("Coins pixel [1, 100]:", coins[1, 100])`
+   - Prints the grayscale intensity at row 1 and column 100. The coins image has no color-channel dimension.
 
-5. `sample = image[1, 100] if image.ndim == 2 else image[1, 100, 1]`
-   - Uses a conditional expression: select a single grayscale pixel for a 2-D image, otherwise select the green channel of an RGB pixel.
+5. `plt.imshow(coins, cmap="gray")`
+   - Displays the coins image using a grayscale color map.
 
-6. `sample_index = "[1,100]" if image.ndim == 2 else "[1,100,1]"`
-   - Builds the correct index label for the printed output.
+6. `plt.axis("off")`
+   - Hides the plot axes because they are not needed for viewing the image.
 
-7. `print(f"{name}: ...")`
-   - Prints the image name, dimensions, storage type, selected index, and pixel value.
+7. `plt.show()`
+   - Displays the coins figure.
 
-8. `ax.imshow(image, cmap="gray" if image.ndim == 2 else None)`
-   - Displays grayscale data with a gray color map and lets Matplotlib use normal RGB rendering for the astronaut.
+8. `astronaut = io.imread(astronaut_path)`
+   - Reads the astronaut JPEG into a NumPy array.
 
-9. `ax.set_title(name)`
-   - Places the filename above the image.
+9. `print("Astronaut shape:", astronaut.shape)`
+   - Prints `(512, 512, 3)`: 512 rows, 512 columns, and three RGB color channels.
 
-10. `ax.axis("off")`
-   - Hides coordinate ticks and borders because they are unnecessary for this image view.
+10. `print("Astronaut dtype:", astronaut.dtype)`
+    - Prints `uint8`, so every red, green, and blue value is an integer from 0 to 255.
 
-11. `plt.tight_layout()`
-   - Automatically adjusts spacing so the plots and titles do not overlap.
+11. `print("Astronaut pixel [1, 100, 1]:", astronaut[1, 100, 1])`
+    - Prints the green-channel value at row 1 and column 100. Channel index 1 means green.
 
-12. `plt.show()`
-    - Renders the completed figure in the notebook.
+12. `plt.imshow(astronaut)`
+    - Displays the RGB astronaut in color.
+
+13. `plt.axis("off")` and `plt.show()`
+    - Hide the axes and display the astronaut figure.
 
 ---
 
