@@ -252,55 +252,46 @@ The important difference is that `resize` receives the final shape we want, whil
 
 ### What to tell the TA
 
-> A histogram counts how many pixels occur at each intensity. Because the grayscale image is `float64`, valid intensities are between 0 and 1. I inspect the distribution and select `t = 0.42` as a useful manual boundary. The comparison `coins_gray < t` creates a Boolean mask: pixels darker than 0.42 become `True`, and the rest become `False`. This is basic segmentation because it separates pixels into two classes.
+> I use the grayscale coins image from Task 2. First, I check its dtype. It is `float64`, so its intensity values are between 0 and 1. I plot a histogram with 256 bins to inspect how the intensities are distributed, then select `t = 0.42`. As shown in the PDF, `coins_gray < t` creates a binary image: darker pixels below 0.42 become `True`, and the remaining pixels become `False`.
 
 If asked whether 0.42 is the only correct threshold, say:
 
-> No. It is a manually selected value based on the histogram. A different value changes the segmentation. An automatic method such as Otsu's method could select a threshold algorithmically, but this task specifically asks us to inspect the histogram and choose `t`.
+> No. It is a manually selected value based on the histogram. A different threshold would change which pixels belong to each group.
 
 ### Line-by-line explanation
 
-1. `t = 0.42`
-   - Stores the chosen threshold in a variable named `t`.
+1. `print("Grayscale dtype:", coins_gray.dtype)`
+   - Prints `float64`. This tells us that an appropriate threshold must be between 0 and 1, rather than between 0 and 255.
 
-2. `binary = coins_gray < t`
-   - Performs an element-by-element comparison. The result has the same height and width but stores only `True` or `False`.
+2. `coins_gray.ravel()`
+   - Flattens the two-dimensional image into one sequence containing all pixel intensities.
 
-3. `fig, axes = plt.subplots(1, 3, figsize=(15, 4))`
-   - Creates axes for the grayscale image, histogram, and binary result.
+3. `plt.hist(coins_gray.ravel(), bins=256)`
+   - Calculates and displays the histogram using 256 intensity groups, as in the PDF example.
 
-4. `axes[0].imshow(coins_gray, cmap="gray")`
-   - Displays the grayscale input.
+4. `plt.title(...)`, `plt.xlabel(...)`, and `plt.ylabel(...)`
+   - Label the histogram so its meaning is clear.
 
-5. `axes[0].set_title(...)` and `axes[0].axis("off")`
-   - Add a title and hide coordinate decoration.
+5. `plt.show()`
+   - Displays the histogram so we can inspect it before choosing the threshold.
 
-6. `coins_gray.ravel()`
-   - Flattens the two-dimensional image into a one-dimensional sequence so all pixel intensities can be passed to the histogram.
+6. `t = 0.42`
+   - Stores the selected threshold. Because the image is `float64` in [0, 1], 0.42 is a valid intensity value.
 
-7. `axes[1].hist(coins_gray.ravel(), bins=256)`
-   - Groups all intensity values into 256 bins and plots their frequencies.
+7. `binary = coins_gray < t`
+   - Compares every grayscale pixel with 0.42. The result is a Boolean array containing `True` or `False`.
 
-8. `axes[1].axvline(t, color="red", linestyle="--", label=f"t = {t}")`
-   - Draws a dashed red vertical line showing the chosen threshold on the histogram.
+8. `plt.imshow(binary, cmap="gray")`
+   - Displays the Boolean array as a black-and-white image.
 
-9. `axes[1].set(title=..., xlabel=..., ylabel=...)`
-   - Sets the histogram title and axis labels in one call.
+9. `plt.title("Binary image with t = 0.42")`
+   - Labels the result with the threshold used.
 
-10. `axes[1].legend()`
-    - Displays the label for the red threshold line.
+10. `plt.axis("off")`
+    - Hides axis ticks because they are unnecessary for the binary image.
 
-11. `axes[2].imshow(binary, cmap="gray")`
-    - Displays the Boolean mask. Matplotlib renders `False` as black and `True` as white.
-
-12. `axes[2].set_title(f"coins_gray < {t}")`
-    - Labels the result with the exact comparison used.
-
-13. `plt.tight_layout()` and `plt.show()`
-    - Arrange and display the three panels.
-
-14. `print(f"grayscale dtype={coins_gray.dtype}; binary dtype={binary.dtype}")`
-    - Confirms that thresholding converts a floating-point intensity image into a Boolean mask.
+11. The final `plt.show()`
+    - Displays the completed binary segmentation.
 
 ---
 
