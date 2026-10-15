@@ -4,7 +4,7 @@ This guide follows `notebooks/lab4_image_processing.ipynb`. Use the **What to te
 
 ## One-minute overview
 
-> In this lab, we represent images as NumPy arrays and use scikit-image to perform a basic image-processing pipeline. We load and inspect RGB images, convert them to grayscale, resize and rescale an image, segment pixels using a threshold, and find a coin using template matching. Finally, we implement normalized cross-correlation ourselves and verify that it finds the same location as scikit-image.
+> In this lab, we represent images as NumPy arrays and use scikit-image to perform a basic image-processing pipeline. We load and inspect one grayscale image and one RGB image, prepare grayscale versions, resize and rescale the grayscale astronaut, segment the grayscale coins using a threshold, and find a coin using template matching. Finally, we implement normalized cross-correlation ourselves and verify that it finds the same location as scikit-image.
 
 Important vocabulary:
 
@@ -22,7 +22,7 @@ Important vocabulary:
 
 ### What to tell the TA
 
-> First, I import the libraries needed for arrays, plotting, image processing, paths, and two-dimensional correlation. I make the notebook independent of the current working directory and point it to the two JPEG files supplied with the lab. I also check that both required files exist so a missing input produces a clear error.
+> First, I import the libraries needed for arrays, plotting, image processing, and file paths. I make the notebook independent of the current working directory and point it to the two JPEG files supplied with the lab. I also check that both required files exist so a missing input produces a clear error.
 
 ### Line-by-line explanation
 
@@ -547,8 +547,8 @@ Yes. Task 5 uses scikit-image's `match_template`. Task 6 uses basic nested loops
 
 1. State that an image is a NumPy array and show shape, dtype, and pixel indexing.
 2. Show RGB-to-grayscale conversion and explain the shape and dtype changes.
-3. Compare exact resizing with factor-based rescaling and mention anti-aliasing.
-4. Point to the histogram, the red threshold line, and the Boolean segmentation.
+3. Explain that Task 3 uses the grayscale astronaut, then compare exact resizing with factor-based rescaling.
+4. Show the histogram, explain why `t = 0.42` suits `float64` data in [0, 1], and show the Boolean segmentation.
 5. Show the coin template, response map, and best-match rectangle.
 6. Explain the NCC numerator and denominator at a high level.
 7. Finish by showing that both implementations return `(x=75, y=170)`.
