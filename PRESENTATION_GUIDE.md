@@ -175,11 +175,11 @@ The resize and 0.25 rescale have the same shape in this example, but they were s
 
 ### What to tell the TA
 
-> I use the grayscale coins image from Task 2. First, I check its dtype and plot a 256-bin histogram. Because the image is `float64`, its values are in the range 0-1. I select `t = 0.42` from the histogram and create the binary image with `coins_gray < t`.
+> I use the grayscale coins image from Task 2. First, I check its dtype and plot a 256-bin histogram. Because the image is `float64`, its values are in the range 0-1. I select `t = 0.45` from the histogram and create the binary image with `coins_gray < t`.
 
 ### Answer required by the PDF
 
-The threshold must match the image dtype. A threshold such as 100 would suit some `uint8` images, but it would be incorrect here because `coins_gray` is `float64` in the range 0-1. Therefore, `t = 0.42` is used. Pixels below 0.42 become `True`; pixels at or above 0.42 become `False`.
+The threshold must match the image dtype. A threshold such as 100 would suit some `uint8` images, but it would be incorrect here because `coins_gray` is `float64` in the range 0-1. Therefore, `t = 0.45` is used. Pixels below 0.45 become `True`; pixels at or above 0.45 become `False`.
 
 ### Line-by-line explanation
 
@@ -192,7 +192,7 @@ The threshold must match the image dtype. A threshold such as 100 would suit som
 3. `plt.hist(..., bins=256)`
    - Calculates and displays a histogram with 256 groups.
 
-4. `t = 0.42`
+4. `t = 0.45`
    - Stores the selected threshold.
 
 5. `binary = coins_gray < t`
@@ -251,7 +251,7 @@ The red rectangle shows the best-matching region in the full image. The red circ
 
 ### What to tell the TA
 
-> I implement my own simple template matcher using sum of squared differences, or SSD. I use the same full image and coin template as Task 5. The template moves over the image one position at a time. The smallest SSD score is the best match.
+> I implement my own simple template matcher using sum of squared differences, or SSD. I move the same coin template from Task 5 over the image one position at a time. I remember only the smallest score and its position. This avoids creating a function or a separate score image.
 
 ### How SSD works
 
@@ -262,54 +262,39 @@ For each position:
 3. Square every difference.
 4. Add the squared differences.
 
-Identical images have a score of zero, so `np.argmin` finds the best position.
+The smallest score shows the position where the image patch is most similar to the template.
 
 ### Line-by-line explanation
 
-1. `def own_template_matching(image, template):`
-   - Defines our own reusable matching function.
-
-2. `image.astype(float)` and `template.astype(float)`
+1. `image_float = image.astype(float)` and `coin_float = coin.astype(float)`
    - Convert integer pixels to floating point so subtraction is safe. Without this, unsigned integers could wrap around.
 
-3. `template_height, template_width = template.shape`
-   - Stores the template dimensions.
+2. `best_score = None`, `best_row = 0`, and `best_column = 0`
+   - Create variables for remembering the best result found so far.
 
-4. `result_height` and `result_width`
-   - Calculate how many complete template positions fit inside the image.
+3. `for row in range(image.shape[0] - hcoin + 1):`
+   - Moves the template down through every row where the complete template fits.
 
-5. `scores = np.zeros(...)`
-   - Creates an array in which every SSD score will be stored.
+4. `for column in range(image.shape[1] - wcoin + 1):`
+   - Moves the template across every column where the complete template fits.
 
-6. `for y in range(result_height):`
-   - Moves the template down through every valid row.
-
-7. `for x in range(result_width):`
-   - Moves the template across every valid column.
-
-8. `patch = image[y:y + template_height, x:x + template_width]`
+5. `patch = image_float[row:row + hcoin, column:column + wcoin]`
    - Crops the current image patch.
 
-9. `difference = patch - template`
-   - Calculates the pixel-by-pixel difference.
+6. `score = np.sum((patch - coin_float) ** 2)`
+   - Subtracts the template, squares the pixel differences, and adds them to make one SSD score.
 
-10. `scores[y, x] = np.sum(difference ** 2)`
-    - Squares and adds all differences, then stores the SSD score.
+7. `if best_score is None or score < best_score:`
+   - Checks whether the current patch is the best match found so far.
 
-11. `return scores`
-    - Returns the completed score image.
+8. `best_score = score`, `best_row = row`, and `best_column = column`
+   - Remembers the new best score and its position.
 
-12. `np.argmin(own_result)`
-    - Finds the smallest score because smaller SSD means a better match.
+9. `plt.Rectangle((best_column, best_row), wcoin, hcoin, ...)`
+   - Draws a red rectangle around the best match.
 
-13. `np.unravel_index(...)`
-    - Converts the position into `y` and `x` coordinates.
-
-14. The rectangle and circle
-    - Show the best position in the original image and score image.
-
-15. The final comparison
-    - Confirms that our matcher finds the same `(x=75, y=170)` position as Task 5.
+10. `print(...)`
+    - Prints the best position as `(x=75, y=170)`.
 
 ---
 
@@ -319,7 +304,7 @@ Identical images have a score of zero, so `np.argmin` finds the best position.
 2. Show the Task 1 shapes, dtypes, and pixel indexing.
 3. Explain the Task 2 before-and-after shape and dtype changes.
 4. Compare `resize` with `rescale` in Task 3.
-5. Explain why `t = 0.42` matches the Task 4 `float64` dtype.
+5. Explain why `t = 0.45` matches the Task 4 `float64` dtype.
 6. Explain the Task 5 rectangle and result maximum.
 7. Explain Task 6 SSD and why the minimum score is selected.
 
